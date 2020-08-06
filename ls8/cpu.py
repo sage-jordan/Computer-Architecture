@@ -1,5 +1,5 @@
 """CPU functionality."""
-
+## CPU class with memory, registers, and pc counter. Has methods to load a memory, call our alu to run operations, and trace which will help us debug. I will implement run()
 import sys
 
 class CPU:
@@ -7,7 +7,10 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.memory = [0] * 256
+        self.registers = [None] * 8
+        self.pc = 0
+        self.running = False
 
     def load(self):
         """Load a program into memory."""
@@ -60,6 +63,27 @@ class CPU:
 
         print()
 
+    def ram_read(self, MAR):
+        if MAR in self.registers:
+            return self.registers[MAR]
+        else:
+            return self.memory[MAR]
+
+    def ram_write(self, MAR, MDR):
+        if MAR > len(self.memory):
+            return Exception("Not enough space")
+        elif self.memory[MAR] != 0:
+            print("Overwriting entry..")
+            self.memory[MAR] = MDR
+        else:
+            self.memory[MAR] = MDR   
+
     def run(self):
         """Run the CPU."""
-        pass
+        instructionRegister = 0
+        self.running = True
+        
+        while self.running:
+            operand_a = ram_read(self.pc + 1)
+            operand_b = ram_read(self.pc + 2)
+            if self.memory[self.pc] == 

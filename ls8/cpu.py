@@ -18,13 +18,16 @@ class CPU:
         self.reg = [0] * 8 # registers
         self.running = False 
         # stack pointer
-        self.sp = 7
+        self.SP = 7
+        self.reg[self.SP] = 0xF4
 
         self.functionDict = {}
         self.functionDict[0b00000001] = self.hlt
         self.functionDict[0b10000010] = self.ldi
         self.functionDict[0b01000111] = self.prn
         self.functionDict[0b10100010] = self.mul
+        self.functionDict[0b01000101] = self.push
+        self.functionDict[0b01000110] = self.pop
 
 
     def load(self):
@@ -59,7 +62,7 @@ class CPU:
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
             self.PC,
-            #self.fl,
+            self.FL,
             #self.ie,
             self.ram_read(self.PC),
             self.ram_read(self.PC + 1),
@@ -121,3 +124,27 @@ class CPU:
         self.reg[reg_a] *= self.reg[reg_b] 
         print(f"Multipled {reg_a}: {savedVal} with {reg_b}: {self.reg[reg_b]} => {self.reg[reg_a]}")
         self.PC += 3
+
+    def push(self):
+        operand_a = self.ram_read(self.PC + 1)
+        print(f"operand_a: {operand_a}")
+        # decrement stack pointer
+        self.reg[self.SP] -= 1
+        # copy value at given index
+        value = self.reg[operand_a]
+        # save pointer
+        pointer = self.reg[self.SP]
+        # change value at that index
+        print(f"PUSH: ram[pointer]: {self.ram[pointer]} is now {value}")
+        self.ram[pointer] = value
+        self.PC += 2
+    def pop(self):
+        operand_a = self.ram_read(self.PC + 1)
+        # copy value at given index/pointer
+        value = self.ram_read(self.reg[self.SP])
+        # change value to given index
+        print(f"POP: reg[op_a]: {self.reg[operand_a]} is now {value}")
+        self.reg[operand_a] = value
+        # increment stack pointer and PC
+        self.reg[self.SP] += 1
+        self.PC += 2

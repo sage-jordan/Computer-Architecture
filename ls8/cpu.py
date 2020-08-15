@@ -28,6 +28,9 @@ class CPU:
         self.functionDict[0b10100010] = self.mul
         self.functionDict[0b01000101] = self.push
         self.functionDict[0b01000110] = self.pop
+        self.functionDict[0b1010000] = self.call
+        self.functionDict[0b00010001] = self.ret
+        self.functionDict[0b10100000] = self.add
 
 
     def load(self):
@@ -49,6 +52,7 @@ class CPU:
         """ALU operations."""
 
         if op == "ADD":
+            print(f"In ALU Adding {self.reg[reg_a]} with {self.reg[reg_b]}")
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
         else:
@@ -82,7 +86,7 @@ class CPU:
     def ram_write(self, address, value):
         self.MAR = address
         self.MDR = value
-        self.ram[MAR] = self.MDR
+        self.ram[self.MAR] = self.MDR
 
     def run(self):
         """Run the CPU."""
@@ -91,7 +95,7 @@ class CPU:
         while self.running:
             # set current instruction to the current index
             self.IR = self.ram_read(self.PC) 
-            print(f'Running instruction {self.IR}')
+            print(f'Running instruction {bin(self.IR)}')
             # call function for this instruction
             self.functionDict[self.IR]()
 
@@ -125,21 +129,25 @@ class CPU:
         print(f"Multipled {reg_a}: {savedVal} with {reg_b}: {self.reg[reg_b]} => {self.reg[reg_a]}")
         self.PC += 3
 
-    def push(self):
+    def push(self, value=None):
         operand_a = self.ram_read(self.PC + 1)
         print(f"operand_a: {operand_a}")
         # decrement stack pointer
         self.reg[self.SP] -= 1
         # copy value at given index
-        value = self.reg[operand_a]
+        if value == None:
+            print("grabbing value")
+            value = self.reg[operand_a]
         # save pointer
         pointer = self.reg[self.SP]
         # change value at that index
         print(f"PUSH: ram[pointer]: {self.ram[pointer]} is now {value}")
-        self.ram[pointer] = value
+        self.ram_write(pointer, value)
         self.PC += 2
-    def pop(self):
-        operand_a = self.ram_read(self.PC + 1)
+    def pop(self, operand_a=None):
+        if operand_a == None:
+            print("grabbing operand_a")
+            operand_a = self.ram_read(self.PC + 1)
         # copy value at given index/pointer
         value = self.ram_read(self.reg[self.SP])
         # change value to given index
@@ -148,3 +156,24 @@ class CPU:
         # increment stack pointer and PC
         self.reg[self.SP] += 1
         self.PC += 2
+
+    def call(self):
+        operand_a = self.ram_read(self.PC + 1)
+        # push next instruction to have later
+        nextInstr = self.ram_read(self.PC + 2)
+        print(f"Saving next instruction {bin(nextInstr)}")
+        self.push(nextInstr)
+        # set PC to address stored in given reg
+        print(f"Moving PC to {self.reg[operand_a]}")
+        self.PC = (self.reg[operand_a])
+
+    def ret(self):
+        print(f"RET: Grabbing instruction")
+        self.PC = self.pop(self.reg[self.SP])
+        print(f"PC: {self.PC}")
+
+    def add(self):
+        operand_a = self.ram_read(self.PC + 1)
+        operand_b = self.ram_read(self.PC + 2)
+        self.alu("ADD", operand_a, operand_b)
+        self.PC += 3

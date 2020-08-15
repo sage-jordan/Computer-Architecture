@@ -2,17 +2,6 @@
 ## CPU class with memory, registers, and PC counter. Has methods to load a memory, call our alu to run operations, and trace which will help us debug. I will implement run()
 import sys
 
-PRINT_TIM      =  0b00000001
-HALT           =  0b00000010
-PRINT_NUM      =  0b01000011  # command 3
-SAVE           =  0b10000100
-PRINT_REGISTER =  0b01000101
-ADD            =  0b10000110  # command 6
-PUSH           =  0b01000111  # 1 operand, command 7
-POP            =  0b01001000  # 1 operand, command 8
-CALL           =  0b01011001
-RET            =  0b00011010
-
 class CPU:
     """Main CPU class."""
 

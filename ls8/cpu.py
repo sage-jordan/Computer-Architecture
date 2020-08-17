@@ -7,19 +7,17 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        # internal registers
         self.PC = 0 # program counter
-        self.IR = None # instruction register (current instruction)
-        self.FL = None # flags
-        self.MAR = None # memory address register 
-        self.MDR = None # memory data register
+        self.IR = None # current instruction
         # others
         self.ram = [None] * 256 # ram
         self.reg = [0] * 8 # registers
         self.running = False 
-        # stack pointer
-        self.SP = 7
-        self.reg[self.SP] = 0xF4
+        # stack pointer is reg[7]
+        self.reg[7] = 0xF4
+        # * R5 is reserved as the interrupt mask (IM)
+        # * R6 is reserved as the interrupt status (IS)
+        # * R7 is reserved as the stack pointer (SP)
 
         self.functionDict = {}
         self.functionDict[0b00000001] = self.hlt
@@ -28,6 +26,9 @@ class CPU:
         self.functionDict[0b10100010] = self.mul
         self.functionDict[0b01000101] = self.push
         self.functionDict[0b01000110] = self.pop
+        self.functionDict[0b1010000] = self.call
+        self.functionDict[0b00010001] = self.ret
+        self.functionDict[0b10100000] = self.add
 
 
     def load(self):
@@ -49,6 +50,7 @@ class CPU:
         """ALU operations."""
 
         if op == "ADD":
+            print(f"In ALU Adding {self.reg[reg_a]} with {self.reg[reg_b]}")
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
         else:
@@ -74,15 +76,11 @@ class CPU:
 
         print()
 
-    def ram_read(self, address):
-        self.MAR = address
-        self.MDR = self.ram[self.MAR]
-        return self.MDR
+    def ram_read(self, MAR):
+        return self.ram[MAR]
 
-    def ram_write(self, address, value):
-        self.MAR = address
-        self.MDR = value
-        self.ram[MAR] = self.MDR
+    def ram_write(self, MAR, MDR):
+        self.ram[MAR] = MDR
 
     def run(self):
         """Run the CPU."""
@@ -91,7 +89,7 @@ class CPU:
         while self.running:
             # set current instruction to the current index
             self.IR = self.ram_read(self.PC) 
-            print(f'Running instruction {self.IR}')
+            print(f'Running instruction {bin(self.IR)}')
             # call function for this instruction
             self.functionDict[self.IR]()
 
@@ -118,33 +116,68 @@ class CPU:
         self.PC += 2
 
     def mul(self):
-        reg_a = self.ram_read(self.PC + 1)
-        savedVal = self.reg[reg_a]
-        reg_b = self.ram_read(self.PC + 2)
-        self.reg[reg_a] *= self.reg[reg_b] 
-        print(f"Multipled {reg_a}: {savedVal} with {reg_b}: {self.reg[reg_b]} => {self.reg[reg_a]}")
+        # get operands
+        operand_a = self.ram_read(self.PC + 1)
+        operand_b = self.ram_read(self.PC + 2)
+        # saved prev value to print
+        savedVal = self.reg[operand_a]
+        # multiply and store in first operand's memory
+        self.reg[operand_a] *= self.reg[operand_b] 
+        print(f"Multipled {operand_a}: {savedVal} with {operand_b}: {self.reg[operand_b]} => {self.reg[operand_a]}")
+        # increment 3
         self.PC += 3
 
     def push(self):
+        # grab operand
         operand_a = self.ram_read(self.PC + 1)
-        print(f"operand_a: {operand_a}")
         # decrement stack pointer
-        self.reg[self.SP] -= 1
+        self.reg[7] -= 1
         # copy value at given index
         value = self.reg[operand_a]
-        # save pointer
-        pointer = self.reg[self.SP]
+        # save stack pointer
+        SP = self.reg[7]
         # change value at that index
-        print(f"PUSH: ram[pointer]: {self.ram[pointer]} is now {value}")
-        self.ram[pointer] = value
+        print(f"PUSH: ram[SP]: {self.ram[SP]} is now {value}")
+        self.ram[SP] = value
+        # increment by 2
         self.PC += 2
+
     def pop(self):
+        # get operand (given register to pop to)
         operand_a = self.ram_read(self.PC + 1)
-        # copy value at given index/pointer
-        value = self.ram_read(self.reg[self.SP])
-        # change value to given index
+        # get stack pointer
+        SP = self.reg[7]
+        # copy value we want
+        value = self.ram_read(SP)
+        # copy value to given register index
         print(f"POP: reg[op_a]: {self.reg[operand_a]} is now {value}")
         self.reg[operand_a] = value
         # increment stack pointer and PC
-        self.reg[self.SP] += 1
+        self.reg[7] += 1
         self.PC += 2
+
+    def call(self):
+        operand_a = self.ram_read(self.PC + 1)
+        # push next instruction to have later
+        nextInstr = self.PC + 2
+        print(f"Saving next instruction index {nextInstr}")
+        # manual push (decrement, save pointer, change val)
+        self.reg[7] -= 1
+        SP = self.reg[7]
+        self.ram[SP] = nextInstr
+        # set PC to address stored in given reg
+        print(f"Moving PC to {self.reg[operand_a]}")
+        self.PC = self.reg[operand_a]
+
+    def ret(self):
+        print(f"RET: Grabbing instruction")
+        SP = self.reg[7]
+        value = self.ram_read(SP)
+        print(f'Setting PC to {value}')
+        self.PC = value
+
+    def add(self):
+        operand_a = self.ram_read(self.PC + 1)
+        operand_b = self.ram_read(self.PC + 2)
+        self.alu("ADD", operand_a, operand_b)
+        self.PC += 3

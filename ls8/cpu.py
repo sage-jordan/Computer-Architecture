@@ -9,6 +9,7 @@ class CPU:
         """Construct a new CPU."""
         self.PC = 0 # program counter
         self.IR = None # current instruction
+        self.FL = None # flags
         # others
         self.ram = [None] * 256 # ram
         self.reg = [0] * 8 # registers
@@ -28,8 +29,11 @@ class CPU:
         self.functionDict[0b01000110] = self.pop
         self.functionDict[0b1010000] = self.call
         self.functionDict[0b00010001] = self.ret
-        self.functionDict[0b10100000] = self.add
-
+        self.functionDict[0b10100000] = "ADD"
+        self.functionDict[0b10100111] = "CMP"
+        self.functionDict[0b01010101] = self.jeq
+        self.functionDict[0b01010110] = self.jne
+        self.functionDict[0b01010100] = self.jmp
 
     def load(self):
         """Load a program into memory."""
@@ -48,11 +52,22 @@ class CPU:
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
-
+        op = self.functionDict[op]
         if op == "ADD":
             print(f"In ALU Adding {self.reg[reg_a]} with {self.reg[reg_b]}")
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == "CMP":
+            print("Running CMP")
+            val1 = self.reg[reg_a]
+            val2 = self.reg[reg_b]
+            if val1 == val2:
+                self.FL = 0b1
+            elif val1 > val2:
+                self.FL = 0b10
+            elif val2 > val1:
+                self.FL = 0b100
+            print("CMP done")
+            self.PC += 3
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -89,9 +104,19 @@ class CPU:
         while self.running:
             # set current instruction to the current index
             self.IR = self.ram_read(self.PC) 
+            # grab operands
+            operand_a = self.ram_read(self.PC + 1)
+            operand_b = self.ram_read(self.PC + 2)
             print(f'Running instruction {bin(self.IR)}')
+            # checks if this is an ALU command
+            is_alu_command = (self.IR >> 5) & 0b001
+            if is_alu_command:
+                print("running ALU")
+                self.alu(self.IR, operand_a, operand_b)
             # call function for this instruction
-            self.functionDict[self.IR]()
+            else:
+                print("running func")
+                self.functionDict[self.IR]()
 
     def hlt(self):
         print("Halting..")
@@ -111,7 +136,7 @@ class CPU:
         # get operand
         operand_a = self.ram_read(self.PC+1)
         # print the value
-        print(f"PRN {self.reg[operand_a]}")
+        print(f"\nPRN====== {self.reg[operand_a]}\n")
         # increment program counter by 2
         self.PC += 2
 
@@ -176,8 +201,24 @@ class CPU:
         print(f'Setting PC to {value}')
         self.PC = value
 
-    def add(self):
+    def jeq(self):
         operand_a = self.ram_read(self.PC + 1)
-        operand_b = self.ram_read(self.PC + 2)
-        self.alu("ADD", operand_a, operand_b)
-        self.PC += 3
+        is_equal = self.FL & 1
+        if is_equal:
+            print(f"JEQ Jumping to {self.reg[operand_a]}")
+            self.PC = self.reg[operand_a]
+        else: 
+            self.PC += 2
+
+    def jne(self):
+        operand_a = self.ram_read(self.PC + 1)
+        if self.FL & 1 is 0:
+            print(f"JNE Jumping to {self.reg[operand_a]}")
+            self.PC = self.reg[operand_a]
+        else: 
+            self.PC += 2
+
+    def jmp(self):
+        operand_a = self.ram_read(self.PC + 1)
+        print(f"JMP Jumping to {self.reg[operand_a]}")
+        self.PC = self.reg[operand_a]

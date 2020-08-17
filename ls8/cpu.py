@@ -34,6 +34,9 @@ class CPU:
         self.functionDict[0b01010101] = self.jeq
         self.functionDict[0b01010110] = self.jne
         self.functionDict[0b01010100] = self.jmp
+        self.functionDict[0b10101000] = "AND"
+        self.functionDict[0b10101010] = "OR"
+        self.functionDict[0b10101011] = "XOR"
 
     def load(self):
         """Load a program into memory."""
@@ -68,6 +71,15 @@ class CPU:
                 self.FL = 0b100
             print("CMP done")
             self.PC += 3
+        elif op == "AND":
+            print("Running AND")
+            self.reg[reg_a] &= self.reg[reg_b]
+        elif op == "OR":
+            print("Running OR")
+            self.reg[reg_a] != self.reg[reg_b]
+        elif op == "XOR":
+            print("Running XOR")
+            self.reg[reg_a] ^= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
